@@ -1,0 +1,1 @@
+gui_init_image_path: str = 'process/gui/setup/images/background.png'

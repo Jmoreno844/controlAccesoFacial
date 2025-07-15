@@ -1,0 +1,5 @@
+/.venv/
+/process/database/faces/
+/process/database/users/
+__pycache__/
+*.pyc
