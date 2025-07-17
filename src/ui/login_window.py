@@ -5,7 +5,7 @@ import cv2
 import imutils
 from PIL import Image, ImageTk
 
-from com_interface.serial_com import SerialCommunication
+from communication.serial_com import SerialCommunication
 from core.face_processing.face_login import FaceLogIn
 from core.face_processing.face_utils import FaceUtils
 

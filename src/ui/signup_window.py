@@ -4,7 +4,7 @@ import imutils
 from PIL import Image, ImageTk
 
 from ui.image_paths import ImagePaths
-from services.user_service import UserService
+from core.user_service import UserService
 from core.face_processing.face_signup import FaceSignUp
 from core.face_processing.face_utils import FaceUtils
 
