@@ -8,8 +8,9 @@ class User(Base):
     __tablename__ = "users"
 
     id = Column(Integer, primary_key=True, index=True)
-    user_code = Column(String, unique=True, index=True, nullable=False)
-    name = Column(String, nullable=False)
+    name = Column(String, unique=True, index=True, nullable=False)
+    hashed_password = Column(String, nullable=True)  # For admin password
+    role = Column(String, default="user", nullable=False)  # "user" or "admin"
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
     rfid_card_id = Column(String, unique=True, index=True, nullable=True)
     logs = relationship("Log", back_populates="user")

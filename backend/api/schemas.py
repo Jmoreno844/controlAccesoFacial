@@ -22,12 +22,18 @@ class Log(LogBase):
 # --- User Schemas ---
 
 class UserBase(BaseModel):
-    user_code: str
     name: str
     rfid_card_id: Optional[str] = None
+    role: str = "user"
 
 class UserCreate(UserBase):
-    pass
+    password: Optional[str] = None
+
+class UserUpdate(BaseModel):
+    rfid_card_id: Optional[str] = None
+
+class RfidCardRequest(BaseModel):
+    id: str
 
 class User(UserBase):
     id: int

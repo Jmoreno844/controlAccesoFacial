@@ -1,8 +1,9 @@
 ##Backend-server
 sqlalchemy==2.0.41
 fastapi===0.116.1
-
-
+passlib[bcrypt]==1.7.4
+bcrypt==3.2.0
+python-multipart==0.0.20
 ##Tkinter--Face?
 absl-py==2.1.0
 annotated-types==0.7.0

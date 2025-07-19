@@ -2,14 +2,15 @@ import os
 import numpy as np
 import cv2
 import datetime
-from typing import List, Tuple, Any
+from typing import List, Tuple, Any, Optional, Dict
 from core.face_processing.models.face_detect_model import FaceDetectMediapipe
 from core.face_processing.models.face_mesh_model import FaceMeshMediapipe
 from core.face_processing.models.face_matcher_model import FaceMatcherModels
+from api.api_client import ApiClient
 
 
 class FaceUtils:
-    def __init__(self):
+    def __init__(self, api_client: ApiClient):
         # face detect
         self.face_detector = FaceDetectMediapipe()
         # face mesh
@@ -24,6 +25,9 @@ class FaceUtils:
         self.distance: float = 0.0
         self.matching: bool = False
         self.user_registered = False
+        
+        # API client for logging
+        self.api_client = api_client
 
     # detect
     def check_face(self, face_image: np.ndarray) -> Tuple[bool, Any, np.ndarray]:
@@ -73,9 +77,16 @@ class FaceUtils:
             return False
 
     # draw
-    def show_state_signup(self, face_image: np.ndarray, state: bool):
-        if state:
-            text = 'Saving face, wait three seconds please'
+    def show_state_signup(self, face_image: np.ndarray, state: bool, saved: bool = False):
+        if saved:
+            text = 'Face saved successfully!'
+            size_text = cv2.getTextSize(text, cv2.FONT_HERSHEY_DUPLEX, 0.75, 1)
+            dim, baseline = size_text[0], size_text[1]
+            cv2.rectangle(face_image, (370, 650 - dim[1]-baseline), (370 + dim[0], 650 + baseline), (0, 0, 0), cv2.FILLED)
+            cv2.putText(face_image, text, (370, 650-5), cv2.FONT_HERSHEY_DUPLEX, 0.75, (0, 255, 0), 1)
+            self.mesh_detector.config_color((0, 255, 0))
+        elif state:
+            text = 'Saving face, wait a moment please...'
             size_text = cv2.getTextSize(text, cv2.FONT_HERSHEY_DUPLEX, 0.75, 1)
             dim, baseline = size_text[0], size_text[1]
             cv2.rectangle(face_image, (370, 650 - dim[1]-baseline), (370 + dim[0], 650 + baseline), (0, 0, 0), cv2.FILLED)
@@ -91,7 +102,17 @@ class FaceUtils:
             cv2.putText(face_image, text, (370, 650 - 5), cv2.FONT_HERSHEY_DUPLEX, 0.75, (255, 0, 0), 1)
             self.mesh_detector.config_color((255, 0, 0))
 
-    def show_state_login(self, face_image: np.ndarray, state: bool):
+    def show_state_signup_instructional(self, face_image: np.ndarray):
+        """Show instructional state when face is detected but not centered (neutral blue color)."""
+        text = 'Please center your face in the camera'
+        size_text = cv2.getTextSize(text, cv2.FONT_HERSHEY_DUPLEX, 0.75, 1)
+        dim, baseline = size_text[0], size_text[1]
+        cv2.rectangle(face_image, (370, 650 - dim[1] - baseline), (370 + dim[0], 650 + baseline), (0, 0, 0),
+                      cv2.FILLED)
+        cv2.putText(face_image, text, (370, 650 - 5), cv2.FONT_HERSHEY_DUPLEX, 0.75, (255, 165, 0), 1)  # Orange color
+        self.mesh_detector.config_color((255, 165, 0))  # Orange mesh color
+
+    def show_state_login(self, face_image: np.ndarray, state: Optional[bool]):
         if state:
             text = 'Approved face, come in please!'
             size_text = cv2.getTextSize(text, cv2.FONT_HERSHEY_DUPLEX, 0.75, 1)
@@ -119,9 +140,28 @@ class FaceUtils:
             cv2.putText(face_image, text, (370, 650 - 5), cv2.FONT_HERSHEY_DUPLEX, 0.75, (255, 0, 0), 1)
             self.mesh_detector.config_color((255, 0, 0))
 
-    def read_face_database(self, database_path: str) -> Tuple[List[np.ndarray], List[str], str]:
+    def read_face_database(self, database_path: Optional[str] = None) -> Tuple[List[np.ndarray], List[str], str]:
+        """Read face database from the centralized face_images directory."""
+        if database_path is None:
+            # Default path to the centralized face_images directory
+            # From face_utils.py: go up 4 levels to reach controlAccesoFacial root
+            base_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..", ".."))
+            database_path = os.path.join(base_path, "data", "face_images")
+            
+        print(f"[DEBUG] Looking for face database at: {database_path}")
+        
         self.face_db: List[np.ndarray] = []
         self.face_names: List[str] = []
+
+        if not os.path.exists(database_path):
+            print(f"Face database directory not found: {database_path}")
+            # Try to create the directory if it doesn't exist
+            try:
+                os.makedirs(database_path, exist_ok=True)
+                print(f"Created face database directory: {database_path}")
+            except Exception as e:
+                print(f"Failed to create face database directory: {e}")
+            return self.face_db, self.face_names, 'No face database found!'
 
         for file in os.listdir(database_path):
             if file.lower().endswith(('.png', '.jpg', '.jpeg')):
@@ -131,6 +171,7 @@ class FaceUtils:
                     self.face_db.append(img_read)
                     self.face_names.append(os.path.splitext(file)[0])
 
+        print(f"[DEBUG] Loaded {len(self.face_db)} faces from database")
         return self.face_db, self.face_names, f'Comparando {len(self.face_db)} rostros!'
 
     def face_matching(self, current_face: np.ndarray, face_db: List[np.ndarray], name_db: List[str]) -> Tuple[bool, str]:
@@ -153,12 +194,53 @@ class FaceUtils:
         print(f"[DEBUG] face_matching: No matches found, returning 'Rostro no conocido'")
         return False, 'Rostro no conocido'
 
-    def user_check_in(self, user_name: str, user_path: str):
-        if not self.user_registered:
+    def user_check_in(self, user_info, access_granted: bool):
+        """Create an access log entry for user check-in."""
+        try:
+            user_id = None
+            details = 'Rostro no conocido'
+
+            if access_granted and isinstance(user_info, str) and user_info.isdigit():
+                user_id = int(user_info)
+                user_data = self.api_client.get_user_by_id(user_id)
+                user_name = user_data.get('name', f'ID {user_id}') if user_data else f'ID {user_id}'
+                details = f'Acceso concedido a {user_name}'
+            elif isinstance(user_info, str):
+                details = user_info  # Handles "Rostro no conocido"
+            elif isinstance(user_info, dict):
+                # Fallback for other potential data structures
+                user_id = user_info.get('id')
+                user_name = user_info.get('name', 'Usuario Desconocido')
+                if access_granted:
+                    details = f'Acceso concedido a {user_name}'
+                else:
+                    details = f'Acceso denegado a {user_name}'
+            
+            event_type = 'login_success' if access_granted else 'login_failure'
+            
+            # Create log entry via API
+            log_data = {
+                'user_id': user_id,
+                'event_type': event_type,
+                'details': details
+            }
+            
+            response = self.api_client.create_log(log_data)
+            
+            if response:
+                print(f"Access log created successfully for user ID: {user_id}")
+                return True
+            else:
+                print(f"Failed to create access log for user ID: {user_id}")
+                return False
+                
+        except Exception as e:
+            print(f"Error creating access log: {e}")
+            # Fallback to console logging if API fails
             now = datetime.datetime.now()
             date_time = now.strftime("%Y-%m-%d %H:%M:%S")
-            user_file_path = os.path.join(user_path, f"{user_name}.txt")
-            with open(user_file_path, "a")as user_file:
-                user_file.write(f'\nAcceso concedido a las : {date_time}\n')
+            status = "concedido" if access_granted else "denegado"
+            print(f"Acceso {status} a las {date_time} para usuario: {user_info}")
+            return False
+                
 
-            self.user_registered = True

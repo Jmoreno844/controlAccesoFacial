@@ -1,4 +1,4 @@
-from ..api.api_client import ApiClient
+from api.api_client import ApiClient
 
 class UserService:
     def __init__(self):

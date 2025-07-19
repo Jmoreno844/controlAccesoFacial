@@ -3,3 +3,5 @@
 /process/database/users/
 __pycache__/
 *.pyc
+/data/face_images/
+/data/access_control.db

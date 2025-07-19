@@ -16,6 +16,11 @@ app = FastAPI(title="Facial Access Control API")
 from api.api import app as api_app
 app.mount("/api", api_app)
 
+@app.middleware("http")
+async def log_requests(request, call_next):
+    print(f"→ {request.method} {request.url}")
+    return await call_next(request)
+
 @app.get("/")
 def read_root():
     return {"message": "Welcome to the Facial Access Control API"}

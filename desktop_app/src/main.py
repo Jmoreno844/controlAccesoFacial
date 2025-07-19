@@ -20,52 +20,30 @@ try:
     import tensorflow as tf
     print("Imported tensorflow successfully...")
     
-    # Preload face processing models
-    print("Loading face processing models...")
-    from core.face_processing.face_utils import FaceUtils
-    
-    # Create a global instance that will be shared
-    global_face_utils = FaceUtils()
-    print("Face processing models loaded successfully...")
-    
-    print("Attempting to import MainWindow...")
-    from ui.main_window import MainWindow
-    print("Imported MainWindow successfully...")
+    # Conditional imports for application components
+    try:
+        from ui.main_window import MainWindow
+        from api.api_client import ApiClient
+        print("Imported MainWindow successfully...")
+    except ImportError as e:
+        print(f"UI or API component import error: {e}")
+        # Handle error appropriately, maybe exit
 
     def main():
-        """Initializes and runs the application."""
-        print("Entering main function...")
+        """Main function to initialize and run the application."""
+        print("Starting application...")
+        root = tk.Tk()
         
-        # Configure logging
-        log.basicConfig(level=log.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
-        print("Configured logging...")
+        # Create a single ApiClient instance
+        api_client = ApiClient()
         
-        try:
-            # Check for GPU
-            print("Checking for GPU...")
-            log.info(f"Num GPUs Available: {len(tf.config.list_physical_devices('GPU'))}")
-            
-            print("Creating tkinter root...")
-            root = tk.Tk()
-            print("Created tkinter root successfully...")
-            
-            print("Creating MainWindow...")
-            app = MainWindow(root)
-            print("Created MainWindow successfully...")
-            
-            print("Setting up close protocol...")
-            root.protocol("WM_DELETE_WINDOW", app.on_closing)
-            
-            print("Starting mainloop...")
-            root.mainloop()
-            
-        except Exception as e:
-            print(f"Error in main function: {e}")
-            print(traceback.format_exc())
-            input("Press Enter to exit...")
+        # Pass the api_client to the MainWindow
+        app = MainWindow(root, api_client)
+        
+        root.mainloop()
+        print("Application finished.")
 
     if __name__ == "__main__":
-        print("Running main...")
         main()
         
 except Exception as e:
